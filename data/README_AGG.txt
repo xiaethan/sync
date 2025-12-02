@@ -1,1 +1,0 @@
-The README in data/sample-agg-input/ explains how the validated QC outputs map to the aggregation fields. It also outlines how ambiguous or conflicting responses are handled and how final summary outputs should be interpreted in the dashboard.

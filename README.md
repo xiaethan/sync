@@ -1,66 +1,272 @@
-# sync
+# Slack Bot - Event Availability Aggregator
 
-## Project Overview and Goals
-This project aims to build a modular crowd-powered system that collects worker responses, applies quality control (QC) checks, and aggregates results into final outputs. The primary goals are to ensure reliable, high-quality responses from workers, implement automated QC checks to flag low-quality submissions, aggregate validated responses into structured datasets, and provide a scalable pipeline for experiments and future expansion.
+A Slack bot that crowdsources group availability and automatically finds optimal meeting times. Just use `/event start` and let the bot collect responses, process them through QC, and aggregate the best options!
 
-## Setup Instructions
-### 1. Install dependencies 
-''' 
-pip install -r requirements.txt 
-'''
+## Features
 
-## How to Run
+- ✅ **Simple Commands**: `/event start` to begin tracking availability
+- ✅ **Automatic Scraping**: Collects messages from the channel automatically
+- ✅ **Smart Parsing**: Extracts time preferences from natural language
+- ✅ **Quality Control**: Validates and flags problematic responses
+- ✅ **Optimal Aggregation**: Finds the best overlapping times across all participants
+- ✅ **Real-time Updates**: Posts results as they're discovered
 
-## Project Breakdown
-### 1. Data
-You can find our data in the data folder, which contains raw and processed data subfolders. Following these folders, you can track data as it moves through the project. 
+## Quick Start
 
-### 2. QC 
-You can find our QC module in src/QC. 
+### 1. Install Dependencies
 
-### 3. Aggregation 
-You can find our aggregation module in src/Aggregation
+```bash
+# Node.js dependencies
+npm install
 
-## Data Format and Breakdown
-### 1. Our Data Parser breaks down texts and prompts into simple JSON. 
-Sample input: 
-```
-{
-  "group_id": "g101",
-  "messages": [
-    {
-      "user_id": "u123",
-      "raw_message": "im good after 7 or anytime tmr morning",
-      "parsed_slots": [
-        {"start": "19:00", "end": "23:00", "conf": 0.88},
-        {"start": "08:00", "end": "12:00", "conf": 0.74}
-      ]
-    }
-  ]
-}
-```
-Sample output: 
-```
-{
-  "validated_entries": [
-    {
-      "user_id": "u123",
-      "clean_slots": [
-        {"start": "19:00", "end": "23:00"},
-        {"start": "08:00", "end": "12:00"}
-      ],
-      "status": "valid"
-    }
-  ],
-  "flagged_entries": []
-}
+# Python dependencies
+pip install -r requirements.txt
 ```
 
-## Team Member Contacts
-- Ethan : ethanxia@seas.upenn.edu
-- Omar : pareja@seas.upenn.edu
-- Daniel : ytian27@wharton.upenn.edu
-- Eshaan : ekaipa@seas.upenn.edu
-- Hugo : songh8@sas.upenn.edu
+### 2. Set Up Slack App
 
-## License Information
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click "Create New App" → "From scratch"
+3. Name your app (e.g., "Event Availability Bot")
+4. Select your workspace
+
+### 3. Configure OAuth & Permissions
+
+**Bot Token Scopes** (OAuth & Permissions → Scopes):
+- `app_mentions:read`
+- `channels:history`
+- `channels:read`
+- `chat:write`
+- `commands`
+- `groups:history`
+- `im:history`
+- `im:read`
+- `mpim:history`
+- `mpim:read`
+- `users:read`
+
+### 4. Enable Socket Mode (Recommended)
+
+1. Go to **Socket Mode** in your app settings
+2. Toggle "Enable Socket Mode" ON
+3. Create an app-level token with `connections:write` scope
+4. Copy the token (starts with `xapp-`)
+
+### 5. Create Slash Command
+
+1. Go to **Slash Commands** in your app settings
+2. Click "Create New Command"
+3. Fill in:
+   - Command: `/event`
+   - Request URL: (leave empty for Socket Mode)
+   - Short description: "Start tracking event availability"
+   - Usage hint: `start | status | stop`
+4. Save
+
+### 6. Install App to Workspace
+
+1. Go to **Install App** (or OAuth & Permissions)
+2. Click "Install to Workspace"
+3. Authorize the app
+
+### 7. Set Environment Variables
+
+Create a `.env` file:
+
+```bash
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret
+SLACK_APP_TOKEN=xapp-your-app-token  # For Socket Mode
+```
+
+Or export them:
+
+```bash
+export SLACK_BOT_TOKEN="xoxb-your-bot-token"
+export SLACK_SIGNING_SECRET="your-signing-secret"
+export SLACK_APP_TOKEN="xapp-your-app-token"
+```
+
+### 8. Run the Bot
+
+```bash
+npm run dev
+```
+
+## Usage
+
+### Starting an Event
+
+In any Slack channel:
+
+```
+/event start
+```
+
+The bot will respond and start tracking availability messages.
+
+### Responding with Availability
+
+Team members can respond in natural language:
+
+```
+I'm free after 7pm on Saturday
+Available Saturday morning
+Free anytime Saturday afternoon
+Can do 2pm - 5pm
+```
+
+The bot automatically parses these and finds overlaps.
+
+### Checking Status
+
+```
+/event status
+```
+
+Shows current progress and optimal times found so far.
+
+### Stopping an Event
+
+```
+/event stop
+```
+
+Stops tracking and posts final results.
+
+## Example Flow
+
+1. **Organizer**: `/event start`
+   - Bot: "🎉 Event tracking started! I'm now collecting availability preferences..."
+
+2. **Team members respond**:
+   - "Free after 7pm Saturday"
+   - "Available Saturday morning"
+   - "Can do 2pm - 5pm Saturday"
+
+3. **Bot automatically**:
+   - Scrapes messages
+   - Parses time slots
+   - Runs QC validation
+   - Aggregates overlaps
+   - Posts updates: "📊 Update: Found 2 optimal time(s)! 🎯 Best so far: 19:00 - 20:00 (3 people)"
+
+4. **Organizer**: `/event status`
+   - Shows all optimal times with participant lists
+
+5. **Organizer**: `/event stop`
+   - Posts final results: "✅ Event Complete! 🎯 Best Time: 19:00 - 20:00"
+
+## Architecture
+
+```
+Slack Channel
+    ↓
+Bot Handler (/event start)
+    ↓
+Message Scraping (SlackIntegration)
+    ↓
+Parsing & Normalization (Parser)
+    ↓
+Quality Control (Python QC Module)
+    ↓
+Aggregation (Python Aggregation Module)
+    ↓
+Results Posted to Slack
+```
+
+## Project Structure
+
+```
+sync/
+├── src/
+│   ├── slack/              # Slack API integration
+│   ├── bot/                # Bot command handlers
+│   ├── parsing/            # Message parsing (Ethan)
+│   ├── qc/                 # Quality control (Python) (Daniel)
+│   ├── aggregation/        # Aggregation (Python) (Daniel)
+│   ├── processing/         # TypeScript-Python bridge
+│   └── types/              # Type definitions
+├── data/processing/        # Temporary processing files
+├── package.json
+├── requirements.txt
+└── README.md
+```
+
+## Module Breakdown
+
+| Module | Author | Responsibilities |
+|--------|--------|-----------------|
+| **Slack Integration** | Omar | Slack API, message scraping, user/channel info |
+| **Bot Handler** | Hugo | Command processing, event management, orchestration |
+| **Parsing** | Ethan | Extract time slots from natural language |
+| **QC & Aggregation** | Daniel | Quality control and optimal time aggregation |
+| **Dashboard** | Eshaan | (Optional) Web dashboard for viewing events |
+
+## Development
+
+### Running in Development
+
+```bash
+npm run dev
+```
+
+### Building for Production
+
+```bash
+npm run build
+npm start
+```
+
+### Testing Python Modules
+
+```bash
+python src/qc/quality_control.py input.json output.json
+python src/aggregation/aggregate.py qc_output.json agg_output.json
+```
+
+## Troubleshooting
+
+### Bot Not Responding
+
+- Check that the bot is installed to your workspace
+- Verify environment variables are set correctly
+- Check bot token has correct scopes
+
+### Messages Not Being Processed
+
+- Ensure bot has `channels:history` scope
+- Make sure bot is in the channel (invite with `/invite @YourBot`)
+- Check that `/event start` was used first
+
+### Python Module Errors
+
+```bash
+# Verify Python is installed
+python3 --version
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SLACK_BOT_TOKEN` | Bot User OAuth Token (starts with `xoxb-`) | Yes |
+| `SLACK_SIGNING_SECRET` | Signing Secret from app settings | Yes |
+| `SLACK_APP_TOKEN` | App-Level Token for Socket Mode (starts with `xapp-`) | Recommended |
+| `PORT` | HTTP server port (if not using Socket Mode) | Optional |
+
+## Team Members
+
+- **Ethan** - Parsing and Normalization (ethanxia@seas.upenn.edu)
+- **Omar** - Slack Integration (pareja@seas.upenn.edu)
+- **Daniel** - QC & Aggregation (ytian27@wharton.upenn.edu)
+- **Eshaan** - Dashboard (ekaipa@seas.upenn.edu)
+- **Hugo** - Bot Orchestration (songh8@sas.upenn.edu)
+
+## License
+
+MIT License
+

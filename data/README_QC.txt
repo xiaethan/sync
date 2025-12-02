@@ -1,1 +1,0 @@
-A README in the data/sample-qc-input/ directory explains each sample file, the types of issues being tested (e.g., missing timestamps, inconsistent sender IDs, duplicate entries), and the intended QC outcomes. The corresponding files in data/sample-qc-output/ show how these issues are resolved or flagged.
