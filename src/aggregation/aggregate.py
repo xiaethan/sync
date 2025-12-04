@@ -1,7 +1,6 @@
 """
 Aggregation Module
 Aggregates validated responses into optimal final time and plan
-Author: Daniel
 """
 
 import json

@@ -1,7 +1,6 @@
 """
 Quality Control Module
 Performs quality control on crowd inputs
-Author: Daniel
 """
 
 import json

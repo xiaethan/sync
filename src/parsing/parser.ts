@@ -1,7 +1,6 @@
 /**
  * Parsing and Normalization Module
  * Cleans and structures raw text messages
- * Author: Ethan
  */
 
 import { ParsedMessage, ParsedSlot } from '../types/message.js';
