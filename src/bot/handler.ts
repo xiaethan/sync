@@ -11,6 +11,7 @@ import { Parser } from '../parsing/parser.js';
 import { ProcessingPipeline } from '../processing/pipeline.js';
 import { EventSession, ParsedMessage, ChannelMessages, AggregatedResult } from '../types/message.js';
 import { v4 as uuidv4 } from 'uuid';
+import { generateICS, timeStringToDate, CalendarEvent } from '../utils/calendar.js';
 
 type AppInstance = InstanceType<typeof App>;
 
@@ -87,6 +88,39 @@ export class BotHandler {
         this.debouncedProcessEvent(activeEvent.event_id);
       }
     });
+
+    // Handle button actions (for calendar)
+    this.app.action('add_to_calendar', async ({ ack, action, body, respond }: any) => {
+      await ack();
+      
+      try {
+        const actionBody = action as any;
+        const eventData = JSON.parse(actionBody.value);
+        const channelId = (body as any).channel?.id;
+        
+        if (!channelId) {
+          await respond({ text: 'Error: Could not determine channel.', response_type: 'ephemeral' });
+          return;
+        }
+
+        await this.handleAddToCalendar(
+          eventData,
+          channelId,
+          (body as any).user?.id
+        );
+
+        await respond({
+          text: '📅 Calendar event generated! Check the channel for the .ics file.',
+          response_type: 'ephemeral',
+        });
+      } catch (error) {
+        console.error('Error handling calendar action:', error);
+        await respond({
+          text: '❌ Error generating calendar file. Please try again.',
+          response_type: 'ephemeral',
+        });
+      }
+    });
   }
 
   // Debounce event processing to avoid too many API calls
@@ -153,7 +187,7 @@ export class BotHandler {
     if (textParam && textParam.trim()) {
       await this.slack.postMessage(
         channelId,
-        `<!channel> New Event: ${textParam}\n\n(authored by <@${userId}>)`
+        `<!channel> ${textParam}\n\n(authored by <@${userId}>)`
       );
     }
   }
@@ -190,12 +224,26 @@ export class BotHandler {
       if (result.optimal_times.length > 0) {
         statusText += `✅ **Optimal Times Found:**\n\n`;
         result.optimal_times.slice(0, 3).forEach((time, idx) => {
-          statusText += `${idx + 1}. ${time.start} - ${time.end}\n`;
+          statusText += `${idx + 1}. ${time.start} - ${time.end}`;
+          if (time.location) {
+            statusText += ` 📍 ${time.location}`;
+          }
+          statusText += `\n`;
           statusText += `   👥 ${time.participant_names.join(', ')}\n`;
           statusText += `   📈 ${(time.confidence * 100).toFixed(0)}% coverage\n\n`;
         });
       } else {
         statusText += `⏳ Still collecting responses...\n`;
+      }
+
+      // Show optimal locations if available
+      if (result.optimal_locations && result.optimal_locations.length > 0) {
+        statusText += `📍 **Optimal Locations:**\n\n`;
+        result.optimal_locations.slice(0, 3).forEach((loc, idx) => {
+          statusText += `${idx + 1}. ${loc.location}\n`;
+          statusText += `   👥 ${loc.participant_names.join(', ')}\n`;
+          statusText += `   📈 ${(loc.confidence * 100).toFixed(0)}% coverage\n\n`;
+        });
       }
     } else {
       statusText += `\n⏳ Processing messages...\n`;
@@ -237,7 +285,7 @@ export class BotHandler {
     } else {
       await this.slack.postMessage(
         channelId,
-        'Event ended, Output: No messages were collected. Make sure team members have posted their availability.'
+        '<!channel> Event ended, Output: No messages were collected. Make sure team members have posted their availability.'
       );
     }
   }
@@ -280,9 +328,10 @@ export class BotHandler {
       if (aggregatedResult.optimal_times.length > 0) {
         const bestTime = aggregatedResult.optimal_times[0];
         if (aggregatedResult.participant_count >= 2) {
+          const locationText = bestTime.location ? ` 📍 ${bestTime.location}` : '';
           await this.slack.postMessage(
             event.channel_id,
-            `📊 **Update:** Found ${aggregatedResult.optimal_times.length} optimal time(s)!\n🎯 **Best so far:** ${bestTime.start} - ${bestTime.end} (${bestTime.participant_names.length} people)`
+            `📊 **Update:** Found ${aggregatedResult.optimal_times.length} optimal time(s)!\n🎯 **Best so far:** ${bestTime.start} - ${bestTime.end}${locationText} (${bestTime.participant_names.length} people)`
           );
         }
       }
@@ -317,8 +366,9 @@ export class BotHandler {
    * Takes parsed messages, runs QC and aggregation, and returns the best result
    */
   async qcAndAggregate(parsedMessages: ParsedMessage[], channelId: string): Promise<{
-    bestTime?: { start: string; end: string; participants: string[]; participant_names: string[] };
+    bestTime?: { start: string; end: string; participants: string[]; participant_names: string[]; location?: string };
     allOptimalTimes: AggregatedResult['optimal_times'];
+    optimalLocations?: AggregatedResult['optimal_locations'];
     participantCount: number;
   }> {
     try {
@@ -344,8 +394,10 @@ export class BotHandler {
           end: bestTime.end,
           participants: bestTime.participants,
           participant_names: bestTime.participant_names,
+          location: bestTime.location,
         } : undefined,
         allOptimalTimes: aggregatedResult.optimal_times,
+        optimalLocations: aggregatedResult.optimal_locations,
         participantCount: aggregatedResult.participant_count,
       };
     } catch (error) {
@@ -377,18 +429,52 @@ export class BotHandler {
         const startTime = formatTime(result.bestTime.start);
         const endTime = formatTime(result.bestTime.end);
         const participantNames = result.bestTime.participant_names.join(', ');
+        const locationText = result.bestTime.location ? `\n📍 **Location:** ${result.bestTime.location}` : '';
 
-        await this.slack.postMessage(
-          channelId,
-          `🎯 **Best Overall Result:**\n\n` +
-          `⏰ **Time:** ${startTime} - ${endTime}\n` +
+        let message = `<!channel> 🎯 **Best Overall Result:**\n\n` +
+          `⏰ **Time:** ${startTime} - ${endTime}${locationText}\n` +
           `👥 **Available:** ${participantNames}\n` +
-          `📊 **Participants:** ${result.participantCount} people`
-        );
+          `📊 **Participants:** ${result.participantCount} people`;
+
+        // Add optimal locations section if available
+        if (result.optimalLocations && result.optimalLocations.length > 0) {
+          const bestLocation = result.optimalLocations[0];
+          message += `\n\n📍 **Best Location:** ${bestLocation.location} (${bestLocation.participant_names.length} people: ${bestLocation.participant_names.join(', ')})`;
+        }
+
+        // Get event text for calendar title
+        const event = this.findActiveEvent(channelId);
+        const eventTitle = event?.event_text || 'Team Meeting';
+
+        // Create calendar button with event data
+        const calendarButton = {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: '📅 Add to Calendar',
+                emoji: true,
+              },
+              style: 'primary',
+              action_id: 'add_to_calendar',
+              value: JSON.stringify({
+                title: eventTitle,
+                start: result.bestTime.start,
+                end: result.bestTime.end,
+                location: result.bestTime.location,
+                participants: result.bestTime.participant_names,
+              }),
+            },
+          ],
+        };
+
+        await this.slack.postMessage(channelId, message, [calendarButton]);
       } else {
         await this.slack.postMessage(
           channelId,
-          '❌ No optimal time found. Make sure team members have posted their availability with valid time slots.'
+          '<!channel> ❌ No optimal time found. Make sure team members have posted their availability with valid time slots.'
         );
       }
     } catch (error) {
@@ -397,6 +483,56 @@ export class BotHandler {
         channelId,
         '❌ Error processing messages. Please try again.'
       );
+    }
+  }
+
+  /**
+   * Handle add to calendar button click
+   */
+  private async handleAddToCalendar(
+    eventData: {
+      title: string;
+      start: string;
+      end: string;
+      location?: string;
+      participants?: string[];
+    },
+    channelId: string,
+    userId?: string
+  ): Promise<void> {
+    try {
+      // Convert time strings to Date objects
+      // Use tomorrow as base date to ensure it's in the future
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const startDate = timeStringToDate(eventData.start, tomorrow);
+      const endDate = timeStringToDate(eventData.end, tomorrow);
+      
+      // Ensure end time is after start time
+      if (endDate <= startDate) {
+        endDate.setDate(endDate.getDate() + 1);
+      }
+
+      // Create calendar event
+      const calendarEvent: CalendarEvent = {
+        title: eventData.title,
+        description: `Participants: ${eventData.participants?.join(', ') || 'Team members'}`,
+        startTime: startDate,
+        endTime: endDate,
+        location: eventData.location,
+        attendees: eventData.participants,
+      };
+
+      // Generate .ics file
+      const icsContent = generateICS(calendarEvent);
+
+      // Upload to Slack
+      const filename = `${eventData.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.ics`;
+      await this.slack.uploadFile(channelId, icsContent, filename, eventData.title);
+    } catch (error) {
+      console.error('Error generating calendar file:', error);
+      throw error;
     }
   }
 }

@@ -129,5 +129,29 @@ export class SlackIntegration {
     weekAgo.setDate(weekAgo.getDate() - 7);
     return this.scrapeMessages(channelId, weekAgo);
   }
+
+  /**
+   * Upload a file to a channel
+   */
+  async uploadFile(
+    channelId: string,
+    content: string | Buffer,
+    filename: string,
+    title?: string
+  ): Promise<string | undefined> {
+    try {
+      const fileBuffer = typeof content === 'string' ? Buffer.from(content, 'utf-8') : content;
+      const result = await this.client.files.uploadV2({
+        channel_id: channelId,
+        file: fileBuffer,
+        filename,
+        title: title || filename,
+      });
+      return (result as any)?.file?.id;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  }
 }
 

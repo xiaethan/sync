@@ -59,6 +59,7 @@ class Aggregator:
         
         # Collect all time slots with participants
         all_slots = []
+        all_locations = []  # Collect all location mentions
         participant_ids = set()
         participant_names = {}
         
@@ -69,29 +70,60 @@ class Aggregator:
             participant_names[user_id] = user_name
             
             for slot in entry.get("clean_slots", []):
-                all_slots.append({
+                slot_data = {
                     "user_id": user_id,
                     "user_name": user_name,
                     "start": slot["start"],
                     "end": slot["end"]
-                })
+                }
+                # Include location if present in slot
+                if "location" in slot and slot["location"]:
+                    slot_data["location"] = slot["location"]
+                    all_locations.append({
+                        "user_id": user_id,
+                        "user_name": user_name,
+                        "location": slot["location"]
+                    })
+                all_slots.append(slot_data)
+            
+            # Also collect general locations from entry
+            if "locations" in entry and entry["locations"]:
+                for location in entry["locations"]:
+                    all_locations.append({
+                        "user_id": user_id,
+                        "user_name": user_name,
+                        "location": location
+                    })
         
         # Find overlapping time slots
         optimal_times = self._find_optimal_overlaps(all_slots, list(participant_ids), participant_names)
         
+        # Find optimal locations
+        optimal_locations = self._find_optimal_locations(all_locations, list(participant_ids), participant_names)
+        
         # Sort by participant count and confidence
         optimal_times.sort(key=lambda x: (len(x["participants"]), x["confidence"]), reverse=True)
+        if optimal_locations:
+            optimal_locations.sort(key=lambda x: (len(x["participants"]), x["confidence"]), reverse=True)
+        
+        # Associate locations with time slots if possible
+        self._associate_locations_with_times(optimal_times, optimal_locations)
         
         # Calculate response rate
         participant_count = len(participant_ids)
         response_rate = 1.0 if participant_count > 0 else 0.0
         
-        return {
+        result = {
             "optimal_times": optimal_times,
             "participant_count": participant_count,
             "response_rate": response_rate,
             "status": "active"
         }
+        
+        if optimal_locations:
+            result["optimal_locations"] = optimal_locations
+        
+        return result
     
     def _find_optimal_overlaps(self, slots: List[Dict[str, Any]], all_participants: List[str], participant_names: Dict[str, str]) -> List[Dict[str, Any]]:
         """
@@ -208,6 +240,73 @@ class Aggregator:
         hours = minutes // 60
         mins = minutes % 60
         return f"{hours:02d}:{mins:02d}"
+    
+    def _find_optimal_locations(self, locations: List[Dict[str, Any]], all_participants: List[str], participant_names: Dict[str, str]) -> List[Dict[str, Any]]:
+        """
+        Find optimal locations based on participant mentions
+        """
+        if len(locations) == 0:
+            return []
+        
+        # Group locations by normalized name (case-insensitive)
+        location_groups: Dict[str, Dict[str, Any]] = {}
+        
+        for loc_entry in locations:
+            location_name = loc_entry["location"].strip()
+            location_key = location_name.lower()
+            
+            if location_key not in location_groups:
+                location_groups[location_key] = {
+                    "location": location_name,  # Keep original casing from first mention
+                    "participants": set(),
+                    "participant_names": []
+                }
+            
+            location_groups[location_key]["participants"].add(loc_entry["user_id"])
+            if loc_entry["user_name"] not in location_groups[location_key]["participant_names"]:
+                location_groups[location_key]["participant_names"].append(loc_entry["user_name"])
+        
+        # Convert to list and calculate confidence
+        optimal_locations = []
+        total_participants = len(all_participants)
+        
+        for location_key, location_data in location_groups.items():
+            participant_count = len(location_data["participants"])
+            confidence = participant_count / total_participants if total_participants > 0 else 0.0
+            
+            optimal_locations.append({
+                "location": location_data["location"],
+                "participants": list(location_data["participants"]),
+                "participant_names": location_data["participant_names"],
+                "confidence": round(confidence, 2)
+            })
+        
+        return optimal_locations
+    
+    def _associate_locations_with_times(self, optimal_times: List[Dict[str, Any]], optimal_locations: List[Dict[str, Any]]):
+        """
+        Try to associate locations with time slots based on participant overlap
+        """
+        if not optimal_locations or not optimal_times:
+            return
+        
+        for time_slot in optimal_times:
+            time_participants = set(time_slot["participants"])
+            
+            # Find location with best participant overlap
+            best_location = None
+            best_overlap = 0
+            
+            for location in optimal_locations:
+                location_participants = set(location["participants"])
+                overlap = len(time_participants & location_participants)
+                
+                if overlap > best_overlap and overlap >= len(time_participants) * 0.5:  # At least 50% overlap
+                    best_overlap = overlap
+                    best_location = location["location"]
+            
+            if best_location:
+                time_slot["location"] = best_location
 
 
 def process_aggregation(input_file: str, output_file: str):

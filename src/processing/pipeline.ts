@@ -41,6 +41,7 @@ export class ProcessingPipeline {
         user_name: msg.user_name,
         raw_message: msg.raw_message,
         parsed_slots: msg.parsed_slots,
+        parsed_locations: msg.parsed_locations,
       })),
     };
 

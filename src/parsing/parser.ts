@@ -12,10 +12,12 @@ export class Parser {
   async parse(message: ParsedMessage): Promise<ParsedMessage> {
     const text = message.raw_message || '';
     const parsedSlots = this.extractTimeSlots(text);
+    const parsedLocations = this.extractLocations(text);
 
     return {
       ...message,
       parsed_slots: parsedSlots,
+      parsed_locations: parsedLocations,
     };
   }
 
@@ -93,6 +95,18 @@ export class Parser {
     const dayTimeSlots = this.extractDayTimeSlots(text);
     if (dayTimeSlots.length > 0) {
       slots.push(...dayTimeSlots);
+    }
+
+    // Associate locations with slots
+    const locations = this.extractLocations(text);
+    if (locations.length > 0) {
+      // If we have locations, try to associate them with slots
+      // For now, associate the first location with all slots if no specific association found
+      slots.forEach(slot => {
+        if (!slot.location && locations.length > 0) {
+          slot.location = locations[0];
+        }
+      });
     }
 
     // Deduplicate and merge overlapping slots
@@ -195,6 +209,78 @@ export class Parser {
     }
 
     return slots;
+  }
+
+  /**
+   * Extract locations from text
+   */
+  private extractLocations(text: string): string[] {
+    const locations: string[] = [];
+    const lowerText = text.toLowerCase();
+
+    // Common location patterns
+    // Pattern 1: "at [location]" or "at the [location]"
+    const atPattern = /(?:^|\s)(?:at|@)\s+(?:the\s+)?([a-z0-9\s]+?)(?:\s|$|,|\.|!|\?|at|in|near)/gi;
+    let match;
+    while ((match = atPattern.exec(text)) !== null) {
+      const location = match[1].trim();
+      if (location.length > 2 && location.length < 50) {
+        locations.push(location);
+      }
+    }
+
+    // Pattern 2: "in [location]" or "in the [location]"
+    const inPattern = /(?:^|\s)in\s+(?:the\s+)?([a-z0-9\s]+?)(?:\s|$|,|\.|!|\?|at|in|near)/gi;
+    while ((match = inPattern.exec(text)) !== null) {
+      const location = match[1].trim();
+      if (location.length > 2 && location.length < 50) {
+        locations.push(location);
+      }
+    }
+
+    // Pattern 3: "near [location]" or "near the [location]"
+    const nearPattern = /(?:^|\s)near\s+(?:the\s+)?([a-z0-9\s]+?)(?:\s|$|,|\.|!|\?|at|in|near)/gi;
+    while ((match = nearPattern.exec(text)) !== null) {
+      const location = match[1].trim();
+      if (location.length > 2 && location.length < 50) {
+        locations.push(location);
+      }
+    }
+
+    // Pattern 4: Common location keywords (library, cafe, restaurant, park, etc.)
+    const locationKeywords = [
+      'library', 'cafe', 'coffee shop', 'restaurant', 'park', 'office',
+      'classroom', 'lab', 'gym', 'stadium', 'theater', 'cinema',
+      'mall', 'store', 'shop', 'bar', 'pub', 'club', 'venue',
+      'hall', 'room', 'building', 'center', 'centre', 'plaza',
+      'square', 'campus', 'university', 'school', 'home', 'house'
+    ];
+
+    for (const keyword of locationKeywords) {
+      const keywordPattern = new RegExp(`\\b${keyword}\\b`, 'gi');
+      if (keywordPattern.test(text)) {
+        // Try to extract the full location phrase
+        const contextPattern = new RegExp(`([a-z0-9\\s]+?\\s+)?${keyword}(\\s+[a-z0-9\\s]+?)?`, 'gi');
+        const contextMatch = contextPattern.exec(text);
+        if (contextMatch) {
+          const fullLocation = contextMatch[0].trim();
+          if (fullLocation.length < 50) {
+            locations.push(fullLocation);
+          }
+        }
+      }
+    }
+
+    // Deduplicate locations (case-insensitive)
+    const uniqueLocations = Array.from(
+      new Set(locations.map(loc => loc.toLowerCase()))
+    ).map(loc => {
+      // Find the original casing from the text
+      const original = locations.find(l => l.toLowerCase() === loc);
+      return original || loc;
+    });
+
+    return uniqueLocations;
   }
 
   /**

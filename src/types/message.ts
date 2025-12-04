@@ -7,6 +7,7 @@ export interface ParsedSlot {
   start: string;  // Format: "HH:MM" or ISO date-time
   end: string;    // Format: "HH:MM" or ISO date-time
   conf: number;   // Confidence score (0-1)
+  location?: string;  // Optional location string
 }
 
 export interface ParsedMessage {
@@ -14,6 +15,7 @@ export interface ParsedMessage {
   user_name: string;
   raw_message: string;
   parsed_slots: ParsedSlot[];
+  parsed_locations?: string[];  // Array of extracted locations
   timestamp: Date;
   message_id: string;
   channel_id: string;
@@ -31,7 +33,9 @@ export interface ValidatedEntry {
   clean_slots: {
     start: string;
     end: string;
+    location?: string;
   }[];
+  locations?: string[];  // General locations mentioned by user
   status: 'valid' | 'flagged';
   flags?: string[];
 }
@@ -45,6 +49,13 @@ export interface AggregatedResult {
   optimal_times: {
     start: string;
     end: string;
+    participants: string[];
+    participant_names: string[];
+    confidence: number;
+    location?: string;  // Optional location for this time slot
+  }[];
+  optimal_locations?: {
+    location: string;
     participants: string[];
     participant_names: string[];
     confidence: number;

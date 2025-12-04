@@ -78,10 +78,14 @@ class QualityControl:
             
             if len(slot_flags) == 0:
                 # Slot is valid, add to clean_slots
-                clean_slots.append({
+                clean_slot = {
                     "start": slot["start"],
                     "end": slot["end"]
-                })
+                }
+                # Include location if present
+                if "location" in slot and slot["location"]:
+                    clean_slot["location"] = slot["location"]
+                clean_slots.append(clean_slot)
             else:
                 flags.extend([f"slot_{f}" for f in slot_flags])
         
@@ -98,6 +102,11 @@ class QualityControl:
             "clean_slots": clean_slots,
             "status": status
         }
+        
+        # Include general locations if present
+        parsed_locations = msg.get("parsed_locations", [])
+        if parsed_locations:
+            entry["locations"] = parsed_locations
         
         if flags:
             entry["flags"] = flags
