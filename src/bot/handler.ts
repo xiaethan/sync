@@ -3,7 +3,8 @@
  * Main bot logic for /event start command and message processing
  */
 
-import { App } from '@slack/bolt';
+import bolt from '@slack/bolt';
+const { App } = bolt;
 import { SlackIntegration } from '../slack/integration.js';
 import { Parser } from '../parsing/parser.js';
 import { ProcessingPipeline } from '../processing/pipeline.js';
