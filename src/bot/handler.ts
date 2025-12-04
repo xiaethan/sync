@@ -153,7 +153,7 @@ export class BotHandler {
     if (textParam && textParam.trim()) {
       await this.slack.postMessage(
         channelId,
-        `@channel New Event: ${textParam}\n\n`
+        `<!channel> New Event: ${textParam}\n\n`
       );
     }
   }
