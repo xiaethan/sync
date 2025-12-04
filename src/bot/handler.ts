@@ -9,7 +9,7 @@ import type { SlashCommand } from '@slack/bolt';
 import { SlackIntegration } from '../slack/integration.js';
 import { Parser } from '../parsing/parser.js';
 import { ProcessingPipeline } from '../processing/pipeline.js';
-import { EventSession } from '../types/message.js';
+import { EventSession, ParsedMessage, ChannelMessages, AggregatedResult } from '../types/message.js';
 import { v4 as uuidv4 } from 'uuid';
 
 type AppInstance = InstanceType<typeof App>;
@@ -153,7 +153,7 @@ export class BotHandler {
     if (textParam && textParam.trim()) {
       await this.slack.postMessage(
         channelId,
-        `<!channel> New Event: ${textParam}\n\n`
+        `<!channel> New Event: ${textParam}\n\n(authored by <@${userId}>)`
       );
     }
   }
@@ -231,27 +231,15 @@ export class BotHandler {
     event.status = 'completed';
     this.activeEvents.set(event.event_id, event);
 
-    // Build output message
-    let outputText = 'Event ended, Output: ';
-    
-    if (event.aggregated_result && event.aggregated_result.optimal_times.length > 0) {
-      const result = event.aggregated_result;
-      const bestTime = result.optimal_times[0];
-      
-      outputText += `\n\n🎯 **Best Time:** ${bestTime.start} - ${bestTime.end}\n👥 **Available:** ${bestTime.participant_names.join(', ')}\n📈 **Coverage:** ${(bestTime.confidence * 100).toFixed(0)}%`;
-      
-      // If there are multiple optimal times, include them
-      if (result.optimal_times.length > 1) {
-        outputText += `\n\n**Other Options:**\n`;
-        result.optimal_times.slice(1, 5).forEach((time, idx) => {
-          outputText += `${idx + 2}. ${time.start} - ${time.end} (${time.participant_names.length} people)\n`;
-        });
-      }
+    // Use the new QC and aggregate function to output best result
+    if (event.parsed_messages.length > 0) {
+      await this.processAndOutputBestResult(event.parsed_messages, channelId);
     } else {
-      outputText += '\n\nNo optimal times found yet. Make sure team members have posted their availability.';
+      await this.slack.postMessage(
+        channelId,
+        'Event ended, Output: No messages were collected. Make sure team members have posted their availability.'
+      );
     }
-
-    await this.slack.postMessage(channelId, outputText);
   }
 
   /**
@@ -322,6 +310,94 @@ export class BotHandler {
     return Array.from(this.activeEvents.values()).filter(
       event => event.status === 'active'
     );
+  }
+
+  /**
+   * QC and Aggregate function
+   * Takes parsed messages, runs QC and aggregation, and returns the best result
+   */
+  async qcAndAggregate(parsedMessages: ParsedMessage[], channelId: string): Promise<{
+    bestTime?: { start: string; end: string; participants: string[]; participant_names: string[] };
+    allOptimalTimes: AggregatedResult['optimal_times'];
+    participantCount: number;
+  }> {
+    try {
+      // Prepare channel messages format for pipeline
+      const channelName = await this.slack.getChannelName(channelId);
+      const channelMessages: ChannelMessages = {
+        channel_id: channelId,
+        channel_name: channelName,
+        messages: parsedMessages,
+      };
+
+      // Run through QC and Aggregation pipeline
+      const { qcOutput, aggregatedResult } = await this.pipeline.process(channelMessages);
+
+      // Get the best optimal time (first one, as they're sorted by participant count and confidence)
+      const bestTime = aggregatedResult.optimal_times.length > 0 
+        ? aggregatedResult.optimal_times[0] 
+        : undefined;
+
+      return {
+        bestTime: bestTime ? {
+          start: bestTime.start,
+          end: bestTime.end,
+          participants: bestTime.participants,
+          participant_names: bestTime.participant_names,
+        } : undefined,
+        allOptimalTimes: aggregatedResult.optimal_times,
+        participantCount: aggregatedResult.participant_count,
+      };
+    } catch (error) {
+      console.error('Error in QC and Aggregation:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process messages and output best result to channel
+   */
+  async processAndOutputBestResult(
+    parsedMessages: ParsedMessage[],
+    channelId: string
+  ): Promise<void> {
+    try {
+      const result = await this.qcAndAggregate(parsedMessages, channelId);
+
+      if (result.bestTime) {
+        // Format time for display (e.g., "10:00" -> "10AM", "14:00" -> "2PM")
+        const formatTime = (time: string): string => {
+          const [hours, minutes] = time.split(':').map(Number);
+          const period = hours >= 12 ? 'PM' : 'AM';
+          const displayHour = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+          const displayMinutes = minutes > 0 ? `:${String(minutes).padStart(2, '0')}` : '';
+          return `${displayHour}${displayMinutes}${period}`;
+        };
+
+        const startTime = formatTime(result.bestTime.start);
+        const endTime = formatTime(result.bestTime.end);
+        const participantNames = result.bestTime.participant_names.join(', ');
+
+        await this.slack.postMessage(
+          channelId,
+          `🎯 **Best Overall Result:**\n\n` +
+          `⏰ **Time:** ${startTime} - ${endTime}\n` +
+          `👥 **Available:** ${participantNames}\n` +
+          `📊 **Participants:** ${result.participantCount} people`
+        );
+      } else {
+        await this.slack.postMessage(
+          channelId,
+          '❌ No optimal time found. Make sure team members have posted their availability with valid time slots.'
+        );
+      }
+    } catch (error) {
+      console.error('Error processing and outputting best result:', error);
+      await this.slack.postMessage(
+        channelId,
+        '❌ Error processing messages. Please try again.'
+      );
+    }
   }
 }
 
