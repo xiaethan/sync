@@ -5,7 +5,7 @@
 
 import bolt from '@slack/bolt';
 const { App } = bolt;
-import type { SlashCommand, SayFn, RespondFn } from '@slack/bolt';
+import type { SlashCommand } from '@slack/bolt';
 import { SlackIntegration } from '../slack/integration.js';
 import { Parser } from '../parsing/parser.js';
 import { ProcessingPipeline } from '../processing/pipeline.js';
@@ -36,21 +36,22 @@ export class BotHandler {
 
   private setupHandlers(): void {
     // Handle /event start command
-    this.app.command('/event', async ({ command, ack, respond }: { command: SlashCommand; ack: () => Promise<void>; respond: RespondFn }) => {
+    this.app.command('/event', async ({ command, ack }: { command: SlashCommand; ack: () => Promise<void> }) => {
       await ack();
 
       const [action, ...args] = command.text.split(' ');
 
       if (action === 'start') {
-        await this.handleEventStart(command.channel_id, command.user_id, respond);
+        await this.handleEventStart(command.channel_id, command.user_id);
       } else if (action === 'status') {
-        await this.handleEventStatus(command.channel_id, respond);
+        await this.handleEventStatus(command.channel_id);
       } else if (action === 'stop' || action === 'end') {
-        await this.handleEventStop(command.channel_id, respond);
+        await this.handleEventStop(command.channel_id);
       } else {
-        await respond({
-          text: 'Unknown command. Use `/event start` to begin tracking availability.',
-        });
+        await this.slack.postMessage(
+          command.channel_id,
+          'Unknown command. Use `/event start` to begin tracking availability.'
+        );
       }
     });
 
@@ -102,15 +103,15 @@ export class BotHandler {
    */
   private async handleEventStart(
     channelId: string,
-    userId: string,
-    respond: any
+    userId: string
   ): Promise<void> {
     // Check if there's already an active event
     const existingEvent = this.findActiveEvent(channelId);
     if (existingEvent) {
-      await respond({
-        text: `There's already an active event tracking availability. Use \`/event status\` to check progress.`,
-      });
+      await this.slack.postMessage(
+        channelId,
+        `There's already an active event tracking availability. Use \`/event status\` to check progress.`
+      );
       return;
     }
 
@@ -136,21 +137,23 @@ export class BotHandler {
 
     this.activeEvents.set(eventId, event);
 
-    await respond({
-      text: 'Event Parser started',
-    });
+    await this.slack.postMessage(
+      channelId,
+      'Event Parser started'
+    );
   }
 
   /**
    * Handle /event status command
    */
-  private async handleEventStatus(channelId: string, respond: any): Promise<void> {
+  private async handleEventStatus(channelId: string): Promise<void> {
     const event = this.findActiveEvent(channelId);
 
     if (!event) {
-      await respond({
-        text: 'No active event in this channel. Use `/event start` to begin tracking availability.',
-      });
+      await this.slack.postMessage(
+        channelId,
+        'No active event in this channel. Use `/event start` to begin tracking availability.'
+      );
       return;
     }
 
@@ -183,19 +186,20 @@ export class BotHandler {
       statusText += `\n⏳ Processing messages...\n`;
     }
 
-    await respond({ text: statusText });
+    await this.slack.postMessage(channelId, statusText);
   }
 
   /**
    * Handle /event stop or /event end command
    */
-  private async handleEventStop(channelId: string, respond: any): Promise<void> {
+  private async handleEventStop(channelId: string): Promise<void> {
     const event = this.findActiveEvent(channelId);
 
     if (!event) {
-      await respond({
-        text: 'No active event in this channel.',
-      });
+      await this.slack.postMessage(
+        channelId,
+        'No active event in this channel.'
+      );
       return;
     }
 
@@ -232,9 +236,7 @@ export class BotHandler {
       outputText += '\n\nNo optimal times found yet. Make sure team members have posted their availability.';
     }
 
-    await respond({
-      text: outputText,
-    });
+    await this.slack.postMessage(channelId, outputText);
   }
 
   /**
