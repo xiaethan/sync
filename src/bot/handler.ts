@@ -153,7 +153,7 @@ export class BotHandler {
     if (textParam && textParam.trim()) {
       await this.slack.postMessage(
         channelId,
-        `New Event: ${textParam}\n\nPlease respond with your availability.`
+        `@channel New Event: ${textParam}\n\n`
       );
     }
   }
