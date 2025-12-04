@@ -42,7 +42,17 @@ export class BotHandler {
       const [action, ...args] = command.text.split(' ');
 
       if (action === 'start') {
-        await this.handleEventStart(command.channel_id, command.user_id);
+        // Extract text parameter (everything after "start")
+        // Handle both quoted and unquoted text
+        let textParam = args.join(' ').trim();
+        
+        // Remove surrounding quotes if present
+        if ((textParam.startsWith('"') && textParam.endsWith('"')) ||
+            (textParam.startsWith("'") && textParam.endsWith("'"))) {
+          textParam = textParam.slice(1, -1);
+        }
+        
+        await this.handleEventStart(command.channel_id, command.user_id, textParam);
       } else if (action === 'status') {
         await this.handleEventStatus(command.channel_id);
       } else if (action === 'stop' || action === 'end') {
@@ -103,7 +113,8 @@ export class BotHandler {
    */
   private async handleEventStart(
     channelId: string,
-    userId: string
+    userId: string,
+    textParam?: string
   ): Promise<void> {
     // Check if there's already an active event
     const existingEvent = this.findActiveEvent(channelId);
@@ -129,6 +140,7 @@ export class BotHandler {
       channel_name: channelName,
       initiated_by: userId,
       initiated_by_name: userName,
+      event_text: textParam || undefined,
       started_at: new Date(),
       expires_at: expiresAt,
       status: 'active',
@@ -137,9 +149,17 @@ export class BotHandler {
 
     this.activeEvents.set(eventId, event);
 
+    // Post the text parameter if provided, then confirm parser started
+    if (textParam && textParam.trim()) {
+      await this.slack.postMessage(
+        channelId,
+        textParam
+      );
+    }
+
     await this.slack.postMessage(
       channelId,
-      'Event Parser started'
+      '(Event Parser started)'
     );
   }
 

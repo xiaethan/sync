@@ -60,6 +60,7 @@ export interface EventSession {
   channel_name: string;
   initiated_by: string;
   initiated_by_name: string;
+  event_text?: string;  // Text parameter from /event start command
   started_at: Date;
   expires_at: Date;
   status: 'active' | 'completed' | 'expired';
