@@ -95,13 +95,38 @@ export SLACK_SIGNING_SECRET="your-signing-secret"
 export SLACK_APP_TOKEN="xapp-your-app-token"
 ```
 
-### 9. Invite Bot to a Channel
+### 9. Find Your Bot Name
+
+The bot name appears in several places:
+
+**Option 1: In Slack App Settings**
+1. Go to your Slack app: https://api.slack.com/apps
+2. Click on your app
+3. Go to **"App Home"** in the sidebar
+4. Under **"Your App's Presence in Slack"**, you'll see:
+   - **Display Name**: This is what you'll use (e.g., "Event Availability Bot")
+   - **Default Username**: This is the @ mention name (e.g., "@eventavailabilitybot")
+
+**Option 2: In Your Workspace**
+1. After installing the app, go to your Slack workspace
+2. Type `/apps` in any channel
+3. Look for your bot in the list - the name shown there is what you'll use
+
+**Option 3: After Running the Bot**
+1. After you start the bot (`npm run dev`), it will appear in your workspace
+2. You can see its name in the Apps section or when you type `@` in a channel
+
+### 10. Invite Bot to a Channel
 
 1. Open any Slack channel
-2. Type: `/invite @YourBotName`
+2. Type: `/invite @YourBotName` (use the Display Name or Default Username from above)
+   - Example: `/invite @eventavailabilitybot`
+   - Or: `/invite @Event Availability Bot`
 3. The bot will join the channel
 
-### 10. Run the Bot
+**Tip**: Start typing `@` in the channel and you should see your bot appear in the autocomplete list!
+
+### 11. Run the Bot
 
 ```bash
 npm run dev
@@ -113,7 +138,7 @@ You should see:
 ✅ Bot is running in Socket Mode!
 ```
 
-### 11. Test It!
+### 12. Test It!
 
 In your Slack channel, type:
 ```

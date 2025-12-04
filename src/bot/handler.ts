@@ -41,7 +41,7 @@ export class BotHandler {
         await this.handleEventStart(command.channel_id, command.user_id, respond);
       } else if (action === 'status') {
         await this.handleEventStatus(command.channel_id, respond);
-      } else if (action === 'stop') {
+      } else if (action === 'stop' || action === 'end') {
         await this.handleEventStop(command.channel_id, respond);
       } else {
         await respond({
@@ -133,7 +133,7 @@ export class BotHandler {
     this.activeEvents.set(eventId, event);
 
     await respond({
-      text: `🎉 Event tracking started!\n\nI'm now collecting availability preferences from this channel. Just respond with your available times (e.g., "free after 7pm", "available Saturday morning", etc.) and I'll automatically find the best time for everyone.\n\nUse \`/event status\` to check progress.`,
+      text: 'Event Parser started',
     });
   }
 
@@ -151,8 +151,14 @@ export class BotHandler {
     }
 
     const messageCount = event.parsed_messages.length;
+    
+    // Count unique users who have sent parsed messages
+    const uniqueUsers = new Set(event.parsed_messages.map(msg => msg.user_id));
+    const uniqueUserCount = uniqueUsers.size;
+    
     let statusText = `📊 Event Status\n\n`;
     statusText += `• Messages collected: ${messageCount}\n`;
+    statusText += `• People's texts parsed: ${uniqueUserCount}\n`;
     statusText += `• Started by: ${event.initiated_by_name}\n`;
 
     if (event.aggregated_result) {
@@ -177,7 +183,7 @@ export class BotHandler {
   }
 
   /**
-   * Handle /event stop command
+   * Handle /event stop or /event end command
    */
   private async handleEventStop(channelId: string, respond: any): Promise<void> {
     const event = this.findActiveEvent(channelId);
@@ -189,22 +195,41 @@ export class BotHandler {
       return;
     }
 
+    // Process the event one final time before ending
+    await this.processEvent(event.event_id);
+    
+    // Get the updated event (results may have changed)
+    const updatedEvent = this.activeEvents.get(event.event_id);
+    if (updatedEvent) {
+      event.aggregated_result = updatedEvent.aggregated_result;
+      event.qc_output = updatedEvent.qc_output;
+    }
+
     event.status = 'completed';
     this.activeEvents.set(event.event_id, event);
 
-    // Post final results
+    // Build output message
+    let outputText = 'Event ended, Output: ';
+    
     if (event.aggregated_result && event.aggregated_result.optimal_times.length > 0) {
       const result = event.aggregated_result;
       const bestTime = result.optimal_times[0];
-
-      await this.slack.postMessage(
-        channelId,
-        `✅ **Event Complete!**\n\n🎯 **Best Time:** ${bestTime.start} - ${bestTime.end}\n👥 **Available:** ${bestTime.participant_names.join(', ')}\n📈 **Coverage:** ${(bestTime.confidence * 100).toFixed(0)}%`
-      );
+      
+      outputText += `\n\n🎯 **Best Time:** ${bestTime.start} - ${bestTime.end}\n👥 **Available:** ${bestTime.participant_names.join(', ')}\n📈 **Coverage:** ${(bestTime.confidence * 100).toFixed(0)}%`;
+      
+      // If there are multiple optimal times, include them
+      if (result.optimal_times.length > 1) {
+        outputText += `\n\n**Other Options:**\n`;
+        result.optimal_times.slice(1, 5).forEach((time, idx) => {
+          outputText += `${idx + 2}. ${time.start} - ${time.end} (${time.participant_names.length} people)\n`;
+        });
+      }
+    } else {
+      outputText += '\n\nNo optimal times found yet. Make sure team members have posted their availability.';
     }
 
     await respond({
-      text: 'Event tracking stopped. Final results posted to channel.',
+      text: outputText,
     });
   }
 
