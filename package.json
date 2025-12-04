@@ -8,7 +8,13 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "watch": "tsx watch src/index.ts"
+    "watch": "tsx watch src/index.ts",
+    "pm2:start": "npm run build && pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop sync-slack-bot",
+    "pm2:restart": "npm run build && pm2 restart sync-slack-bot",
+    "pm2:delete": "pm2 delete sync-slack-bot",
+    "pm2:logs": "pm2 logs sync-slack-bot",
+    "pm2:status": "pm2 status"
   },
   "keywords": [
     "slack",

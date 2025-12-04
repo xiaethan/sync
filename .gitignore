@@ -1,8 +1,9 @@
 node_modules/
 dist/
 *.log
+logs/
 .DS_Store
-*.env
+.env
 __pycache__/
 *.pyc
 .venv/
@@ -10,4 +11,5 @@ venv/
 *.db
 *.sqlite
 *.env.local
+.pm2/
 
