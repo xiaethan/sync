@@ -5,21 +5,24 @@
 
 import bolt from '@slack/bolt';
 const { App } = bolt;
+import type { SlashCommand, SayFn, RespondFn } from '@slack/bolt';
 import { SlackIntegration } from '../slack/integration.js';
 import { Parser } from '../parsing/parser.js';
 import { ProcessingPipeline } from '../processing/pipeline.js';
 import { EventSession } from '../types/message.js';
 import { v4 as uuidv4 } from 'uuid';
 
+type AppInstance = InstanceType<typeof App>;
+
 export class BotHandler {
-  private app: App;
+  private app: AppInstance;
   private slack: SlackIntegration;
   private parser: Parser;
   private pipeline: ProcessingPipeline;
   private activeEvents: Map<string, EventSession> = new Map();
 
   constructor(
-    app: App,
+    app: AppInstance,
     slack: SlackIntegration,
     parser: Parser,
     pipeline: ProcessingPipeline
@@ -33,7 +36,7 @@ export class BotHandler {
 
   private setupHandlers(): void {
     // Handle /event start command
-    this.app.command('/event', async ({ command, ack, respond }) => {
+    this.app.command('/event', async ({ command, ack, respond }: { command: SlashCommand; ack: () => Promise<void>; respond: RespondFn }) => {
       await ack();
 
       const [action, ...args] = command.text.split(' ');
@@ -52,7 +55,7 @@ export class BotHandler {
     });
 
     // Listen for messages in channels with active events
-    this.app.message(async ({ message }) => {
+    this.app.message(async ({ message }: { message: any }) => {
       // Skip bot messages, edits, and other subtypes
       if (!('channel' in message) || !('user' in message) || message.subtype) {
         return;
