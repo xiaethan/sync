@@ -356,7 +356,7 @@ pip install -r requirements.txt
 
 ## Team Members
 
-- **Ethan** - Parsing and Normalization (ethanxia@seas.upenn.edu)
-- **Omar** - Slack Integration (pareja@seas.upenn.edu)
-- **Eshaan** - Dashboard (ekaipa@seas.upenn.edu)
+- **Ethan** - Slack Integration (ethanxia@seas.upenn.edu)
+- **Omar** - QC (pareja@seas.upenn.edu)
+- **Eshaan** - Aggregation (ekaipa@seas.upenn.edu)
 
