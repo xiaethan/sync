@@ -12,5 +12,6 @@ venv/
 *.sqlite
 *.env.local
 .pm2/
-data/processing/
+data/processing/*
+!data/processing/.gitkeep
 

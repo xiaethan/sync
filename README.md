@@ -207,7 +207,8 @@ sync/
 │   ├── aggregation/        # Aggregation (Python)
 │   ├── processing/         # TypeScript-Python bridge
 │   └── types/              # Type definitions
-├── data/processing/        # Temporary processing files
+├── data/
+│   └── processing/         # Temporary processing files (JSON inputs/outputs for QC & aggregation)
 ├── package.json
 ├── requirements.txt
 └── README.md
