@@ -13,19 +13,57 @@ A Slack bot that crowdsources group availability and automatically finds optimal
 
 ## Quick Start
 
-### 1. Install from Slack App Directory
+> **Note**: We're working on getting this app published to the Slack App Directory, but the approval process takes time. In the meantime, you can install the app manually by following the instructions below.
 
-1. Open your Slack workspace
-2. Go to the [Slack App Directory](https://slack.com/apps)
-3. Search for "Event Availability Aggregator" or "Event Availability Bot"
-4. Click "Add to Slack"
-5. Review the permissions and click "Allow" to authorize the app
+### 1. Set Up Slack App Manually
 
-The app will automatically be added to your workspace with all necessary permissions configured.
+1. Go to [api.slack.com/apps](https://api.slack.com/apps)
+2. Click "Create New App" → "From scratch"
+3. Name your app (e.g., "Event Availability Aggregator")
+4. Select your workspace
 
-### 2. Install Dependencies
+### 2. Configure OAuth & Permissions
 
-After installing the app from the store, you'll need to set up the backend:
+**Bot Token Scopes** (OAuth & Permissions → Scopes):
+- `app_mentions:read`
+- `channels:history`
+- `channels:read`
+- `chat:write`
+- `commands`
+- `groups:history`
+- `im:history`
+- `im:read`
+- `mpim:history`
+- `mpim:read`
+- `users:read`
+
+### 3. Enable Socket Mode (Recommended)
+
+1. Go to **Socket Mode** in your app settings
+2. Toggle "Enable Socket Mode" ON
+3. Create an app-level token with `connections:write` scope
+4. Copy the token (starts with `xapp-`)
+
+### 4. Create Slash Command
+
+1. Go to **Slash Commands** in your app settings
+2. Click "Create New Command"
+3. Fill in:
+   - Command: `/event`
+   - Request URL: (leave empty for Socket Mode)
+   - Short description: "Start tracking event availability"
+   - Usage hint: `start | status | stop`
+4. Save
+
+### 5. Install App to Workspace
+
+1. Go to **Install App** (or OAuth & Permissions)
+2. Click "Install to Workspace"
+3. Authorize the app
+
+### 6. Install Dependencies
+
+Install the required dependencies for the backend:
 
 ```bash
 # Node.js dependencies
@@ -35,15 +73,15 @@ npm install
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables (For Self-Hosting)
+### 7. Set Environment Variables
 
-If you're self-hosting the bot, you'll need to set up environment variables. After installing the app from the Slack App Directory, you can find these tokens in your app's settings:
+You'll need to set up environment variables. After creating and installing the app, you can find these tokens in your app's settings:
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Select your installed "Event Availability Aggregator" app
+2. Select your "Event Availability Aggregator" app
 3. Navigate to **OAuth & Permissions** to find your Bot Token
 4. Navigate to **Basic Information** → **App Credentials** to find your Signing Secret
-5. Navigate to **Socket Mode** to create an App-Level Token (if using Socket Mode)
+5. Navigate to **Socket Mode** to find your App-Level Token (if using Socket Mode)
 
 Create a `.env` file:
 
@@ -61,11 +99,19 @@ export SLACK_SIGNING_SECRET="your-signing-secret"
 export SLACK_APP_TOKEN="xapp-your-app-token"
 ```
 
-### 4. Run the Bot
+### 8. Run the Bot
 
+**Development Mode:**
 ```bash
 npm run dev
 ```
+
+**Production Mode (with PM2):**
+```bash
+npm run pm2:start
+```
+
+For more information on PM2 deployment, see the [Deployment with PM2](#deployment-with-pm2) section below.
 
 ## Usage
 
@@ -167,16 +213,6 @@ sync/
 └── README.md
 ```
 
-## Module Breakdown
-
-| Module | Author | Responsibilities |
-|--------|--------|-----------------|
-| **Slack Integration** | Omar | Slack API, message scraping, user/channel info |
-| **Bot Handler** | - | Command processing, event management, orchestration |
-| **Parsing** | Ethan | Extract time slots from natural language |
-| **QC & Aggregation** | - | Quality control and optimal time aggregation |
-| **Dashboard** | Eshaan | (Optional) Web dashboard for viewing events |
-
 ## Development
 
 ### Running in Development
@@ -190,6 +226,92 @@ npm run dev
 ```bash
 npm run build
 npm start
+```
+
+## Deployment with PM2
+
+This application is deployed using PM2, a production process manager for Node.js applications. PM2 keeps the application running in the background, automatically restarts it if it crashes, and provides useful monitoring tools.
+
+### Prerequisites
+
+Install PM2 globally if you haven't already:
+
+```bash
+npm install -g pm2
+```
+
+### Starting the Application
+
+Build the project and start it with PM2:
+
+```bash
+npm run pm2:start
+```
+
+This will:
+1. Build the TypeScript code to JavaScript
+2. Start the application using PM2 with the configuration in `ecosystem.config.cjs`
+3. Run the bot in production mode
+
+### Managing the Application
+
+**Check Status:**
+```bash
+npm run pm2:status
+# or
+pm2 status
+```
+
+**View Logs:**
+```bash
+npm run pm2:logs
+# or
+pm2 logs sync-slack-bot
+```
+
+**Restart the Application:**
+```bash
+npm run pm2:restart
+# or
+pm2 restart sync-slack-bot
+```
+
+**Stop the Application:**
+```bash
+npm run pm2:stop
+# or
+pm2 stop sync-slack-bot
+```
+
+**Delete from PM2:**
+```bash
+npm run pm2:delete
+# or
+pm2 delete sync-slack-bot
+```
+
+### PM2 Configuration
+
+The PM2 configuration is defined in `ecosystem.config.cjs`. The application is configured to:
+- Run in production mode
+- Auto-restart on crashes (up to 10 times)
+- Log errors and output to `./logs/pm2-error.log` and `./logs/pm2-out.log`
+- Restart if memory usage exceeds 500MB
+- Run a single instance in fork mode
+
+### Monitoring
+
+PM2 provides several useful monitoring commands:
+
+```bash
+# Real-time monitoring
+pm2 monit
+
+# View detailed information
+pm2 show sync-slack-bot
+
+# View logs with timestamps
+pm2 logs sync-slack-bot --timestamp
 ```
 
 ### Testing Python Modules
@@ -237,8 +359,4 @@ pip install -r requirements.txt
 - **Ethan** - Parsing and Normalization (ethanxia@seas.upenn.edu)
 - **Omar** - Slack Integration (pareja@seas.upenn.edu)
 - **Eshaan** - Dashboard (ekaipa@seas.upenn.edu)
-
-## License
-
-MIT License
 
