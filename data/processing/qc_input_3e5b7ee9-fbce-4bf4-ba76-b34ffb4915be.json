@@ -1,0 +1,31 @@
+{
+  "channel_id": "C0A2A8YNXFS",
+  "messages": [
+    {
+      "user_id": "U0A14A39DAN",
+      "user_name": "Ethan Xia",
+      "raw_message": "hutmsna 3 pm to 5pm",
+      "parsed_slots": [
+        {
+          "start": "15:00",
+          "end": "19:00",
+          "conf": 0.7
+        }
+      ],
+      "parsed_locations": []
+    },
+    {
+      "user_id": "U0A201T4GJV",
+      "user_name": "Ethan Xia",
+      "raw_message": "4 pm to 5 pm huntsman",
+      "parsed_slots": [
+        {
+          "start": "16:00",
+          "end": "19:00",
+          "conf": 0.7
+        }
+      ],
+      "parsed_locations": []
+    }
+  ]
+}

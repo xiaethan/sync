@@ -4,16 +4,28 @@ A Slack bot that crowdsources group availability and automatically finds optimal
 
 ## Features
 
-- ✅ **Simple Commands**: `/event start` to begin tracking availability
-- ✅ **Automatic Scraping**: Collects messages from the channel automatically
-- ✅ **Smart Parsing**: Extracts time preferences from natural language
-- ✅ **Quality Control**: Validates and flags problematic responses
-- ✅ **Optimal Aggregation**: Finds the best overlapping times across all participants
-- ✅ **Real-time Updates**: Posts results as they're discovered
+- **Simple Commands**: `/event start` to begin tracking availability
+- **Automatic Scraping**: Collects messages from the channel automatically
+- **Smart Parsing**: Extracts time preferences from natural language
+- **Quality Control**: Validates and flags problematic responses
+- **Optimal Aggregation**: Finds the best overlapping times across all participants
+- **Real-time Updates**: Posts results as they're discovered
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install from Slack App Directory
+
+1. Open your Slack workspace
+2. Go to the [Slack App Directory](https://slack.com/apps)
+3. Search for "Event Availability Aggregator" or "Event Availability Bot"
+4. Click "Add to Slack"
+5. Review the permissions and click "Allow" to authorize the app
+
+The app will automatically be added to your workspace with all necessary permissions configured.
+
+### 2. Install Dependencies
+
+After installing the app from the store, you'll need to set up the backend:
 
 ```bash
 # Node.js dependencies
@@ -23,53 +35,15 @@ npm install
 pip install -r requirements.txt
 ```
 
-### 2. Set Up Slack App
+### 3. Configure Environment Variables (For Self-Hosting)
+
+If you're self-hosting the bot, you'll need to set up environment variables. After installing the app from the Slack App Directory, you can find these tokens in your app's settings:
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Click "Create New App" → "From scratch"
-3. Name your app (e.g., "Event Availability Bot")
-4. Select your workspace
-
-### 3. Configure OAuth & Permissions
-
-**Bot Token Scopes** (OAuth & Permissions → Scopes):
-- `app_mentions:read`
-- `channels:history`
-- `channels:read`
-- `chat:write`
-- `commands`
-- `groups:history`
-- `im:history`
-- `im:read`
-- `mpim:history`
-- `mpim:read`
-- `users:read`
-
-### 4. Enable Socket Mode (Recommended)
-
-1. Go to **Socket Mode** in your app settings
-2. Toggle "Enable Socket Mode" ON
-3. Create an app-level token with `connections:write` scope
-4. Copy the token (starts with `xapp-`)
-
-### 5. Create Slash Command
-
-1. Go to **Slash Commands** in your app settings
-2. Click "Create New Command"
-3. Fill in:
-   - Command: `/event`
-   - Request URL: (leave empty for Socket Mode)
-   - Short description: "Start tracking event availability"
-   - Usage hint: `start | status | stop`
-4. Save
-
-### 6. Install App to Workspace
-
-1. Go to **Install App** (or OAuth & Permissions)
-2. Click "Install to Workspace"
-3. Authorize the app
-
-### 7. Set Environment Variables
+2. Select your installed "Event Availability Aggregator" app
+3. Navigate to **OAuth & Permissions** to find your Bot Token
+4. Navigate to **Basic Information** → **App Credentials** to find your Signing Secret
+5. Navigate to **Socket Mode** to create an App-Level Token (if using Socket Mode)
 
 Create a `.env` file:
 
@@ -87,7 +61,7 @@ export SLACK_SIGNING_SECRET="your-signing-secret"
 export SLACK_APP_TOKEN="xapp-your-app-token"
 ```
 
-### 8. Run the Bot
+### 4. Run the Bot
 
 ```bash
 npm run dev
@@ -182,9 +156,9 @@ sync/
 ├── src/
 │   ├── slack/              # Slack API integration
 │   ├── bot/                # Bot command handlers
-│   ├── parsing/            # Message parsing (Ethan)
-│   ├── qc/                 # Quality control (Python) (Daniel)
-│   ├── aggregation/        # Aggregation (Python) (Daniel)
+│   ├── parsing/            # Message parsing
+│   ├── qc/                 # Quality control (Python)
+│   ├── aggregation/        # Aggregation (Python)
 │   ├── processing/         # TypeScript-Python bridge
 │   └── types/              # Type definitions
 ├── data/processing/        # Temporary processing files
@@ -198,9 +172,9 @@ sync/
 | Module | Author | Responsibilities |
 |--------|--------|-----------------|
 | **Slack Integration** | Omar | Slack API, message scraping, user/channel info |
-| **Bot Handler** | Hugo | Command processing, event management, orchestration |
+| **Bot Handler** | - | Command processing, event management, orchestration |
 | **Parsing** | Ethan | Extract time slots from natural language |
-| **QC & Aggregation** | Daniel | Quality control and optimal time aggregation |
+| **QC & Aggregation** | - | Quality control and optimal time aggregation |
 | **Dashboard** | Eshaan | (Optional) Web dashboard for viewing events |
 
 ## Development
@@ -262,9 +236,7 @@ pip install -r requirements.txt
 
 - **Ethan** - Parsing and Normalization (ethanxia@seas.upenn.edu)
 - **Omar** - Slack Integration (pareja@seas.upenn.edu)
-- **Daniel** - QC & Aggregation (ytian27@wharton.upenn.edu)
 - **Eshaan** - Dashboard (ekaipa@seas.upenn.edu)
-- **Hugo** - Bot Orchestration (songh8@sas.upenn.edu)
 
 ## License
 

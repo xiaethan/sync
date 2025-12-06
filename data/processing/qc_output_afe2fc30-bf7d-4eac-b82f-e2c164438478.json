@@ -1,0 +1,27 @@
+{
+  "validated_entries": [
+    {
+      "user_id": "U0A14A39DAN",
+      "user_name": "Ethan Xia",
+      "clean_slots": [
+        {
+          "start": "15:00",
+          "end": "19:00"
+        }
+      ],
+      "status": "valid"
+    },
+    {
+      "user_id": "U0A201T4GJV",
+      "user_name": "Ethan Xia",
+      "clean_slots": [
+        {
+          "start": "16:00",
+          "end": "19:00"
+        }
+      ],
+      "status": "valid"
+    }
+  ],
+  "flagged_entries": []
+}
