@@ -94,6 +94,8 @@ Create a `.env` file:
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_SIGNING_SECRET=your-signing-secret
 SLACK_APP_TOKEN=xapp-your-app-token  # For Socket Mode
+OPENAI_API_KEY=your-openai-key       # Required for LLM aggregation
+OPENAI_MODEL=gpt-4o-mini             # Optional, defaults to gpt-4o-mini
 ```
 
 Or export them:
@@ -102,6 +104,9 @@ Or export them:
 export SLACK_BOT_TOKEN="xoxb-your-bot-token"
 export SLACK_SIGNING_SECRET="your-signing-secret"
 export SLACK_APP_TOKEN="xapp-your-app-token"
+export OPENAI_API_KEY="your-openai-key"
+# Optional override
+export OPENAI_MODEL="gpt-4o-mini"
 ```
 
 ### 8. Run the Bot
@@ -359,6 +364,8 @@ pip install -r requirements.txt
 | `SLACK_BOT_TOKEN` | Bot User OAuth Token (starts with `xoxb-`) | Yes |
 | `SLACK_SIGNING_SECRET` | Signing Secret from app settings | Yes |
 | `SLACK_APP_TOKEN` | App-Level Token for Socket Mode (starts with `xapp-`) | Recommended |
+| `OPENAI_API_KEY` | OpenAI API key used for LLM aggregation | Yes |
+| `OPENAI_MODEL` | Override model name (default `gpt-4o-mini`) | Optional |
 | `PORT` | HTTP server port (if not using Socket Mode) | Optional |
 
 ## Team Members

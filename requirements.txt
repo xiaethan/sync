@@ -1,4 +1,4 @@
-pandas
-matplotlib
-numpy
+# Python dependencies for quality control module
+# Currently using only standard library (json, typing, sys)
+# No external dependencies required
 
