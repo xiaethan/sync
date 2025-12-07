@@ -1,6 +1,6 @@
 /**
  * Processing Pipeline
- * Bridges TypeScript and Python modules for QC and Aggregation
+ * Bridges TypeScript and Python modules for QC, then uses OpenAI LLM for Aggregation
  */
 
 import { exec } from 'child_process';

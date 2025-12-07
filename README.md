@@ -200,7 +200,7 @@ Parsing & Normalization (Parser)
     ↓
 Quality Control (Python QC Module)
     ↓
-Aggregation (Python Aggregation Module)
+Aggregation (OpenAI LLM Aggregation)
     ↓
 Results Posted to Slack
 ```
@@ -214,8 +214,8 @@ sync/
 │   ├── bot/                # Bot command handlers
 │   ├── parsing/            # Message parsing
 │   ├── qc/                 # Quality control (Python)
-│   ├── aggregation/        # Aggregation (Python)
-│   ├── processing/         # TypeScript-Python bridge
+│   ├── aggregation/        # Aggregation (Python) - DEPRECATED, not used
+│   ├── processing/         # TypeScript-Python bridge for QC, OpenAI LLM for aggregation
 │   └── types/              # Type definitions
 ├── data/
 │   └── processing/         # Temporary processing files (JSON inputs/outputs for QC & aggregation)
