@@ -4,7 +4,7 @@ Performs quality control on crowd inputs
 """
 
 import json
-from typing import Dict, List, Any
+from typing import Dict, List, Any 
 
 class QualityControl:
     def __init__(self):

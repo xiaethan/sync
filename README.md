@@ -53,13 +53,18 @@ A Slack bot that crowdsources group availability and automatically finds optimal
    - Request URL: (leave empty for Socket Mode)
    - Short description: "Start tracking event availability"
    - Usage hint: `start | status | stop`
-4. Save
+4. **Important**: Make sure "Escape channels, users, and links sent to your app" is checked (this helps with security)
+5. Save
 
 ### 5. Install App to Workspace
 
 1. Go to **Install App** (or OAuth & Permissions)
 2. Click "Install to Workspace"
 3. Authorize the app
+4. **Important**: After installing, the slash command should be available to ALL users in your workspace. If other users can't see `/event`, try:
+   - Reinstalling the app to the workspace (uninstall and reinstall)
+   - Making sure the app is installed at the workspace level, not just for your user
+   - Asking other users to refresh their Slack client or restart the app
 
 ### 6. Install Dependencies
 
@@ -329,6 +334,7 @@ python src/aggregation/aggregate.py qc_output.json agg_output.json
 - Check that the bot is installed to your workspace
 - Verify environment variables are set correctly
 - Check bot token has correct scopes
+- Make sure the bot is running (check PM2 status or logs)
 
 ### Messages Not Being Processed
 

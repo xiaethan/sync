@@ -37,32 +37,44 @@ export class BotHandler {
 
   private setupHandlers(): void {
     // Handle /event start command
-    this.app.command('/event', async ({ command, ack }: { command: SlashCommand; ack: () => Promise<void> }) => {
-      await ack();
+    this.app.command('/event', async ({ command, ack, respond }: { command: SlashCommand; ack: () => Promise<void>; respond: (response: any) => Promise<void> }) => {
+      try {
+        await ack();
 
-      const [action, ...args] = command.text.split(' ');
+        const [action, ...args] = command.text.split(' ');
 
-      if (action === 'start') {
-        // Extract text parameter (everything after "start")
-        // Handle both quoted and unquoted text
-        let textParam = args.join(' ').trim();
-        
-        // Remove surrounding quotes if present
-        if ((textParam.startsWith('"') && textParam.endsWith('"')) ||
-            (textParam.startsWith("'") && textParam.endsWith("'"))) {
-          textParam = textParam.slice(1, -1);
+        if (action === 'start') {
+          // Extract text parameter (everything after "start")
+          // Handle both quoted and unquoted text
+          let textParam = args.join(' ').trim();
+          
+          // Remove surrounding quotes if present
+          if ((textParam.startsWith('"') && textParam.endsWith('"')) ||
+              (textParam.startsWith("'") && textParam.endsWith("'"))) {
+            textParam = textParam.slice(1, -1);
+          }
+          
+          await this.handleEventStart(command.channel_id, command.user_id, textParam);
+        } else if (action === 'status') {
+          await this.handleEventStatus(command.channel_id);
+        } else if (action === 'stop' || action === 'end') {
+          await this.handleEventStop(command.channel_id);
+        } else {
+          await this.slack.postMessage(
+            command.channel_id,
+            'Unknown command. Use `/event start` to begin tracking availability.'
+          );
         }
-        
-        await this.handleEventStart(command.channel_id, command.user_id, textParam);
-      } else if (action === 'status') {
-        await this.handleEventStatus(command.channel_id);
-      } else if (action === 'stop' || action === 'end') {
-        await this.handleEventStop(command.channel_id);
-      } else {
-        await this.slack.postMessage(
-          command.channel_id,
-          'Unknown command. Use `/event start` to begin tracking availability.'
-        );
+      } catch (error) {
+        console.error('Error handling /event command:', error);
+        try {
+          await respond({
+            text: '❌ An error occurred processing your command. Please try again or contact the bot administrator.',
+            response_type: 'ephemeral'
+          });
+        } catch (respondError) {
+          console.error('Error sending error response:', respondError);
+        }
       }
     });
 
@@ -150,45 +162,56 @@ export class BotHandler {
     userId: string,
     textParam?: string
   ): Promise<void> {
-    // Check if there's already an active event
-    const existingEvent = this.findActiveEvent(channelId);
-    if (existingEvent) {
-      await this.slack.postMessage(
-        channelId,
-        `There's already an active event tracking availability. Use \`/event status\` to check progress.`
-      );
-      return;
-    }
+    try {
+      // Check if there's already an active event
+      const existingEvent = this.findActiveEvent(channelId);
+      if (existingEvent) {
+        await this.slack.postMessage(
+          channelId,
+          `There's already an active event tracking availability. Use \`/event status\` to check progress.`
+        );
+        return;
+      }
 
-    // Create new event session
-    const eventId = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+      // Create new event session
+      const eventId = uuidv4();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
 
-    const userName = await this.slack.getUserName(userId);
-    const channelName = await this.slack.getChannelName(channelId);
+      const userName = await this.slack.getUserName(userId);
+      const channelName = await this.slack.getChannelName(channelId);
 
-    const event: EventSession = {
-      event_id: eventId,
-      channel_id: channelId,
-      channel_name: channelName,
-      initiated_by: userId,
-      initiated_by_name: userName,
-      event_text: textParam || undefined,
-      started_at: new Date(),
-      expires_at: expiresAt,
-      status: 'active',
-      parsed_messages: [],
-    };
+      const event: EventSession = {
+        event_id: eventId,
+        channel_id: channelId,
+        channel_name: channelName,
+        initiated_by: userId,
+        initiated_by_name: userName,
+        event_text: textParam || undefined,
+        started_at: new Date(),
+        expires_at: expiresAt,
+        status: 'active',
+        parsed_messages: [],
+      };
 
-    this.activeEvents.set(eventId, event);
+      this.activeEvents.set(eventId, event);
 
-    // Post the text parameter if provided, then confirm parser started
-    if (textParam && textParam.trim()) {
-      await this.slack.postMessage(
-        channelId,
-        `<!channel> ${textParam}\n\n(authored by <@${userId}>)`
-      );
+      // Post the text parameter if provided, then confirm parser started
+      if (textParam && textParam.trim()) {
+        await this.slack.postMessage(
+          channelId,
+          `<!channel> ${textParam}\n\n(authored by <@${userId}>)`
+        );
+      } else {
+        // Confirm event tracking started
+        await this.slack.postMessage(
+          channelId,
+          `🎉 Event tracking started! I'm now collecting availability preferences in this channel.`
+        );
+      }
+    } catch (error) {
+      console.error('Error in handleEventStart:', error);
+      throw error;
     }
   }
 
